@@ -40,6 +40,10 @@ android {
         }
         create("stable") {
             initWith(getByName("release"))
+            // Keep the stable build unshrunk for reliability (avoids proguard
+            // stripping reflection/serialization used by DI, extensions, caches).
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 

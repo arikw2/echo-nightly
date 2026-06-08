@@ -1,13 +1,16 @@
-name: nightly
+name: release
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch: { }
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -28,16 +31,22 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Build nightly APK
+      - name: Build stable APK
         run: |
-          ./gradlew assembleNightly \
+          ./gradlew assembleStable \
           -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/signing-key.jks \
           -Pandroid.injected.signing.store.password=${{ secrets.PASSWORD }} \
           -Pandroid.injected.signing.key.alias=key0 \
           -Pandroid.injected.signing.key.password=${{ secrets.PASSWORD }}
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Read version
+        id: version
+        run: echo "tag=v3.0.$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
         with:
-          name: echo-nightly
-          path: app/build/outputs/apk/nightly/app-nightly.apk
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          files: app/build/outputs/apk/stable/app-stable.apk
+          generate_release_notes: true
