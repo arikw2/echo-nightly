@@ -215,9 +215,19 @@ class PlayerService : MediaLibraryService() {
             downloaded: List<String>,
         ) = if (downloaded.isNotEmpty()) streamables.size
         else if (streamables.isNotEmpty()) {
-            val streamable = streamables.select(app, extensionId) { it.quality }
+            // Forced-by-title override (global app setting, not the per-extension
+            // prefs the extension itself rewrites): if set to a server title
+            // (e.g. "320kbps"), pick that server directly. Falls back to the
+            // abstract highest/medium/lowest selection otherwise.
+            val forced = app.settings.getString(forcedQualityKey(extensionId), null)
+                ?.takeIf { it.isNotBlank() }
+            val byTitle = forced?.let { p -> streamables.firstOrNull { it.title == p } }
+            val streamable = byTitle ?: streamables.select(app, extensionId) { it.quality }
             streamables.indexOf(streamable)
         } else -1
+
+        fun forcedQualityKey(extensionId: String) = "forced_quality_$extensionId"
+        const val COMBINE_FORCED_QUALITY = "forced_quality_echo_combine"
 
         private fun <E> List<E>.select(
             app: App,

@@ -17,6 +17,7 @@ import dev.brahmkshatriya.echo.playback.MediaItemUtils.isLoaded
 import dev.brahmkshatriya.echo.playback.MediaItemUtils.retries
 import dev.brahmkshatriya.echo.playback.PlayerCommands.getLikeButton
 import dev.brahmkshatriya.echo.playback.PlayerCommands.getRepeatButton
+import dev.brahmkshatriya.echo.playback.PlayerCommands.getShuffleButton
 import dev.brahmkshatriya.echo.playback.PlayerState
 import dev.brahmkshatriya.echo.playback.ResumptionUtils
 import dev.brahmkshatriya.echo.playback.exceptions.PlayerException
@@ -46,6 +47,7 @@ class PlayerEventListener(
             extensions.music.getExtension(item.extensionId)?.isClient<LikeClient>() ?: false
         }
         val commandButtons = listOfNotNull(
+            getShuffleButton(context, player.shuffleModeEnabled),
             getRepeatButton(context, player.repeatMode),
             getLikeButton(context, item).takeIf { supportsLike }
         )
@@ -65,6 +67,7 @@ class PlayerEventListener(
         updateCurrentFlow()
         updateCustomLayout()
         ResumptionUtils.saveIndex(context, player.currentMediaItemIndex)
+        mediaItem?.let { ResumptionUtils.saveRecent(context, it) }
     }
 
     override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
@@ -83,6 +86,7 @@ class PlayerEventListener(
     }
 
     override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+        updateCustomLayout()
         ResumptionUtils.saveShuffle(context, shuffleModeEnabled)
     }
 

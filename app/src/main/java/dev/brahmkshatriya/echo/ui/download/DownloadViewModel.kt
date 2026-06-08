@@ -82,6 +82,48 @@ class DownloadViewModel(
         }
     }
 
+    // Download a user-selected subset of tracks (multi-select). Resolves each
+    // track through the download client, then enqueues them all at once.
+    fun addTracksToDownload(
+        activity: FragmentActivity,
+        extensionId: String,
+        tracks: List<Track>,
+        context: EchoMediaItem?,
+    ) = viewModelScope.launch(Dispatchers.IO) {
+        with(activity) {
+            if (tracks.isEmpty()) return@with
+            messageFlow.emit(
+                Message(getString(R.string.downloading_x, "${tracks.size}"))
+            )
+            val downloadExt = downloadExtensions.first { it != null }?.firstOrNull()
+                ?: return@with messageFlow.emit(
+                    Message(
+                        app.getString(R.string.no_download_extension),
+                        Message.Action(getString(R.string.add_extension)) {
+                            ExtensionsAddBottomSheet().show(supportFragmentManager, null)
+                        }
+                    )
+                )
+            val downloads = tracks.flatMap { track ->
+                downloadExt.getIf<DownloadClient, List<DownloadContext>>(throwableFlow) {
+                    getDownloadTracks(extensionId, track, context)
+                } ?: emptyList()
+            }
+            if (downloads.isEmpty()) return@with messageFlow.emit(
+                Message(app.getString(R.string.nothing_to_download_in_x, "${tracks.size}"))
+            )
+            downloader.add(downloads)
+            messageFlow.emit(
+                Message(
+                    getString(R.string.download_started),
+                    Message.Action(getString(R.string.view)) {
+                        openFragment<DownloadFragment>()
+                    }
+                )
+            )
+        }
+    }
+
     fun cancel(trackId: Long) {
         downloader.cancel(trackId)
     }

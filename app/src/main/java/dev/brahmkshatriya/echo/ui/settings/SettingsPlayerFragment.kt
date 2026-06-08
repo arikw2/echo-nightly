@@ -14,6 +14,7 @@ import dev.brahmkshatriya.echo.playback.PlayerService.Companion.CACHE_SIZE
 import dev.brahmkshatriya.echo.playback.PlayerService.Companion.CLOSE_PLAYER
 import dev.brahmkshatriya.echo.playback.PlayerService.Companion.MORE_BRAIN_CAPACITY
 import dev.brahmkshatriya.echo.playback.PlayerService.Companion.SKIP_SILENCE
+import dev.brahmkshatriya.echo.playback.PlayerService.Companion.COMBINE_FORCED_QUALITY
 import dev.brahmkshatriya.echo.playback.PlayerService.Companion.STREAM_QUALITY
 import dev.brahmkshatriya.echo.playback.PlayerService.Companion.UNMETERED_STREAM_QUALITY
 import dev.brahmkshatriya.echo.playback.PlayerService.Companion.streamQualities
@@ -70,6 +71,18 @@ class SettingsPlayerFragment : BaseSettingsFragment() {
                     layoutResource = R.layout.preference
                     isIconSpaceReserved = false
                     setDefaultValue(streamQualities[1])
+                    addPreference(this)
+                }
+
+                MaterialListPreference(context).apply {
+                    key = COMBINE_FORCED_QUALITY
+                    title = "Combine playback quality"
+                    summary = "Force the audio quality used by the Combine extension"
+                    entries = arrayOf("Auto", "FLAC (lossless)", "320 kbps", "128 kbps")
+                    entryValues = arrayOf("", "FLAC", "320kbps", "128kbps")
+                    layoutResource = R.layout.preference
+                    isIconSpaceReserved = false
+                    setDefaultValue("320kbps")
                     addPreference(this)
                 }
 

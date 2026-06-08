@@ -9,6 +9,7 @@ import androidx.annotation.OptIn
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.scale
 import androidx.core.os.bundleOf
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.Rating
 import androidx.media3.common.ThumbRating
@@ -29,6 +30,7 @@ import dev.brahmkshatriya.echo.common.clients.ArtistClient
 import dev.brahmkshatriya.echo.common.clients.LikeClient
 import dev.brahmkshatriya.echo.common.clients.PlaylistClient
 import dev.brahmkshatriya.echo.common.clients.RadioClient
+import dev.brahmkshatriya.echo.common.clients.SearchFeedClient
 import dev.brahmkshatriya.echo.common.clients.TrackClient
 import dev.brahmkshatriya.echo.common.helpers.PagedData
 import dev.brahmkshatriya.echo.common.models.Album
@@ -55,6 +57,8 @@ import dev.brahmkshatriya.echo.playback.ResumptionUtils.recoverShuffle
 import dev.brahmkshatriya.echo.playback.ResumptionUtils.recoverTracks
 import dev.brahmkshatriya.echo.playback.exceptions.PlayerException
 import dev.brahmkshatriya.echo.playback.listener.PlayerRadio
+import dev.brahmkshatriya.echo.utils.CacheUtils.getFromCache
+import dev.brahmkshatriya.echo.utils.CoroutineUtils.await
 import dev.brahmkshatriya.echo.utils.CoroutineUtils.future
 import dev.brahmkshatriya.echo.utils.Serializer.getSerialized
 import dev.brahmkshatriya.echo.utils.image.ImageUtils.loadDrawable
@@ -85,7 +89,8 @@ class PlayerCallback(
         val sessionCommands = with(PlayerCommands) {
             MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
                 .add(likeCommand).add(unlikeCommand).add(repeatCommand).add(repeatOffCommand)
-                .add(repeatOneCommand).add(radioCommand).add(sleepTimer)
+                .add(repeatOneCommand).add(shuffleCommand).add(shuffleOffCommand)
+                .add(radioCommand).add(sleepTimer)
                 .add(playCommand).add(addToQueueCommand).add(addToNextCommand)
                 .add(resumeCommand).add(imageCommand)
                 .build()
@@ -107,6 +112,8 @@ class PlayerCallback(
             repeatOffCommand -> setRepeat(player, Player.REPEAT_MODE_OFF)
             repeatOneCommand -> setRepeat(player, Player.REPEAT_MODE_ONE)
             repeatCommand -> setRepeat(player, Player.REPEAT_MODE_ALL)
+            shuffleCommand -> setShuffle(player, true)
+            shuffleOffCommand -> setShuffle(player, false)
             playCommand -> playItem(player, args)
             addToQueueCommand -> addToQueue(player, args)
             addToNextCommand -> addToNext(player, args)
@@ -163,6 +170,11 @@ class PlayerCallback(
 
     private fun setRepeat(player: Player, repeat: Int) = run {
         player.repeatMode = repeat
+        Futures.immediateFuture(SessionResult(RESULT_SUCCESS))
+    }
+
+    private fun setShuffle(player: Player, enabled: Boolean) = run {
+        player.shuffleModeEnabled = enabled
         Futures.immediateFuture(SessionResult(RESULT_SUCCESS))
     }
 
@@ -401,6 +413,105 @@ class PlayerCallback(
             }
             SessionResult(RESULT_SUCCESS, bundleOf("liked" to liked))
         }
+    }
+
+    // Android Auto sends only the single tapped track to onSetMediaItems, so
+    // next/prev have nothing to move to and auto-radio kicks in with unrelated
+    // songs. Expand that single track into its full container (playlist/album/
+    // radio) queue, positioned at the tapped track.
+    // Voice search ("Hey Google, play X on Echo"): Android Auto/Assistant sends
+    // media items carrying a searchQuery instead of an id. Resolve the query to
+    // playable tracks via the Combine search feed so playback starts hands-free.
+    @OptIn(UnstableApi::class)
+    override fun onAddMediaItems(
+        mediaSession: MediaSession,
+        controller: MediaSession.ControllerInfo,
+        mediaItems: MutableList<MediaItem>
+    ) = scope.future {
+        val out = mutableListOf<MediaItem>()
+        for (item in mediaItems) {
+            val query = item.requestMetadata.searchQuery
+            if (!query.isNullOrBlank()) out += voiceSearchTracks(query)
+            else out += item
+        }
+        if (out.isEmpty()) mediaItems else out
+    }
+
+    private suspend fun voiceSearchTracks(query: String): List<MediaItem> {
+        val list = extensions.music.value
+        val ext = list.firstOrNull { it.id == "echo_combine" }
+            ?: list.firstOrNull() ?: return emptyList()
+        return ext.getAs<SearchFeedClient, List<MediaItem>> {
+            val feed = loadSearchFeed(query)
+            val shelves = feed.getPagedData(feed.tabs.firstOrNull()).pagedData.loadPage(null).data
+            shelves.flatMap { shelf ->
+                when (shelf) {
+                    is Shelf.Item -> listOfNotNull(shelf.media as? Track)
+                    is Shelf.Lists.Tracks -> shelf.list
+                    is Shelf.Lists.Items -> shelf.list.filterIsInstance<Track>()
+                    else -> emptyList()
+                }
+            }.take(50).map {
+                MediaItemUtils.build(app, downloadFlow.value, MediaState.Unloaded(ext.id, it), null)
+            }
+        }.getOrElse { emptyList() }
+    }
+
+    @OptIn(UnstableApi::class)
+    override fun onSetMediaItems(
+        mediaSession: MediaSession,
+        controller: MediaSession.ControllerInfo,
+        mediaItems: MutableList<MediaItem>,
+        startIndex: Int,
+        startPositionMs: Long
+    ) = scope.future {
+        val single = mediaItems.singleOrNull()
+        val expanded = if (single != null && single.mediaId.startsWith("auto/")) {
+            runCatching { expandContainerQueue(single, mediaSession) }.getOrNull()
+        } else null
+        if (expanded != null) {
+            val (items, index) = expanded
+            super.onSetMediaItems(
+                mediaSession, controller, items.toMutableList(), index, startPositionMs
+            ).await(context)
+        } else super.onSetMediaItems(
+            mediaSession, controller, mediaItems, startIndex, startPositionMs
+        ).await(context)
+    }
+
+    // Expand the tapped track into its container queue. Returns only the FIRST
+    // page immediately so playback starts fast (and Android Auto switches to the
+    // now-playing screen); the rest of the tracks are appended in the background.
+    private suspend fun expandContainerQueue(
+        item: MediaItem, mediaSession: MediaSession
+    ): Pair<List<MediaItem>, Int>? {
+        val id = item.mediaId.substringAfter("auto/")
+        val (track, extId, con) =
+            context.getFromCache<Triple<Track, String, EchoMediaItem?>>(id, "auto") ?: return null
+        if (con == null || con is Track) return null
+        val extension = extensions.music.getExtension(extId) ?: return null
+        val paged = listTracks(extension, con, loaded = true).getOrNull() ?: return null
+        val firstPage = extension.get { paged.loadPage(null) }.getOrNull() ?: return null
+        var list = firstPage.data
+        if (list.isEmpty()) return null
+        var index = list.indexOfFirst { it.id == track.id }
+        if (index < 0) {
+            // Tapped track not in first page: lead with it so playback is correct.
+            list = listOf(track) + list
+            index = 0
+        }
+        fun build(t: Track) =
+            MediaItemUtils.build(app, downloadFlow.value, MediaState.Unloaded(extId, t), con)
+        // Append remaining tracks after playback has started.
+        if (firstPage.continuation != null) scope.launch {
+            val all = extension.get { paged.loadAll() }.getOrElse { return@launch }
+            val have = list.map { it.id }.toHashSet()
+            val rest = all.filter { it.id !in have }.map { build(it) }
+            if (rest.isNotEmpty()) withContext(Dispatchers.Main) {
+                mediaSession.player.addMediaItems(rest)
+            }
+        }
+        return list.map { build(it) } to index
     }
 
     override fun onPlaybackResumption(

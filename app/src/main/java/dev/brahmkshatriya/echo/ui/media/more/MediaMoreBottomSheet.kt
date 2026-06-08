@@ -10,9 +10,11 @@ import dev.brahmkshatriya.echo.common.clients.ExtensionClient
 import dev.brahmkshatriya.echo.common.clients.PlaylistEditClient
 import dev.brahmkshatriya.echo.common.clients.TrackClient
 import dev.brahmkshatriya.echo.common.models.Artist
+import dev.brahmkshatriya.echo.common.models.Album
 import dev.brahmkshatriya.echo.common.models.EchoMediaItem
 import dev.brahmkshatriya.echo.common.models.Playlist
 import dev.brahmkshatriya.echo.common.models.Track
+import dev.brahmkshatriya.echo.ui.download.SelectDownloadBottomSheet
 import dev.brahmkshatriya.echo.databinding.DialogMediaMoreBinding
 import dev.brahmkshatriya.echo.download.Downloader
 import dev.brahmkshatriya.echo.extensions.MediaState
@@ -226,6 +228,13 @@ class MediaMoreBottomSheet : BottomSheetDialogFragment(R.layout.dialog_media_mor
             ) {
                 val downloadViewModel by activityViewModel<DownloadViewModel>()
                 downloadViewModel.addToDownload(requireActivity(), extensionId, item, itemContext)
+            } else null,
+            if (downloadable && (item is Playlist || item is Album)) button(
+                "download_select", R.string.select_tracks_to_download,
+                R.drawable.ic_download_for_offline
+            ) {
+                SelectDownloadBottomSheet.newInstance(extensionId, item)
+                    .show(parentFragmentManager, null)
             } else null,
             if (shouldShowDelete) button(
                 "delete_download", R.string.delete_download, R.drawable.ic_scan_delete

@@ -9,6 +9,7 @@ import dev.brahmkshatriya.echo.playback.PlayerState
 import dev.brahmkshatriya.echo.ui.common.SnackBarHandler
 import dev.brahmkshatriya.echo.ui.common.UiViewModel
 import dev.brahmkshatriya.echo.ui.download.DownloadViewModel
+import dev.brahmkshatriya.echo.ui.download.SelectDownloadViewModel
 import dev.brahmkshatriya.echo.ui.extensions.ExtensionInfoViewModel
 import dev.brahmkshatriya.echo.ui.extensions.ExtensionsViewModel
 import dev.brahmkshatriya.echo.ui.extensions.add.AddViewModel
@@ -80,6 +81,7 @@ object DI {
         viewModelOf(::EditPlaylistViewModel)
 
         viewModelOf(::DownloadViewModel)
+        viewModelOf(::SelectDownloadViewModel)
     }
 
     val appModule = module {

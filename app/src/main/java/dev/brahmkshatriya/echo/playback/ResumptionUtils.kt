@@ -91,6 +91,22 @@ object ResumptionUtils {
         context.saveToCache(REPEAT, repeat, FOLDER)
     }
 
+    private const val RECENTS = "recents"
+    private const val RECENTS_MAX = 25
+
+    // Most-recently-played tracks (newest first, de-duplicated by track id).
+    fun saveRecent(context: Context, item: MediaItem) {
+        val state = MediaState.Unloaded(item.extensionId, item.track)
+        val existing = context.getFromCache<List<MediaState.Unloaded<Track>>>(RECENTS, FOLDER)
+            ?: emptyList()
+        val updated = (listOf(state) + existing.filterNot { it.item.id == state.item.id })
+            .take(RECENTS_MAX)
+        context.saveToCache(RECENTS, updated, FOLDER)
+    }
+
+    fun Context.recoverRecents(): List<MediaState.Unloaded<Track>> =
+        getFromCache<List<MediaState.Unloaded<Track>>>(RECENTS, FOLDER) ?: emptyList()
+
     fun Context.recoverPlaylist(
         app: App,
         downloads: List<Downloader.Info>,

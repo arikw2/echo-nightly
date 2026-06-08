@@ -10,6 +10,7 @@ import dev.brahmkshatriya.echo.common.MiscExtension
 import dev.brahmkshatriya.echo.common.MusicExtension
 import dev.brahmkshatriya.echo.common.TrackerExtension
 import dev.brahmkshatriya.echo.common.clients.ExtensionClient
+import dev.brahmkshatriya.echo.common.clients.HomeFeedClient
 import dev.brahmkshatriya.echo.common.clients.LoginClient
 import dev.brahmkshatriya.echo.common.helpers.Injectable
 import dev.brahmkshatriya.echo.common.helpers.WebViewClient
@@ -58,6 +59,7 @@ class ExtensionLoader(
     val scope = CoroutineScope(Dispatchers.IO)
     val db = ExtensionDatabase.create(app.context)
 
+    private var homeFeedWarmed = false
     private var permGrantedFlow = false
     fun setPermGranted() {
         if (permGrantedFlow) return
@@ -186,6 +188,7 @@ class ExtensionLoader(
     }.stateIn(scope, SharingStarted.Lazily, emptyList())
 
     init {
+        seedBundledExtensions()
         scope.launch {
             all.collect { list ->
                 list.forEach {
@@ -196,6 +199,23 @@ class ExtensionLoader(
         }
         scope.launch {
             music.collectLatest { setCurrentExtension() }
+        }
+        // Warm the Combine home feed as soon as it's available so the first
+        // Android Auto load isn't blocked on a cold network fetch.
+        scope.launch {
+            music.collectLatest { list ->
+                if (homeFeedWarmed) return@collectLatest
+                val ext = list.firstOrNull { it.id == "echo_combine" && it.isEnabled }
+                    ?: return@collectLatest
+                runCatching {
+                    ext.get {
+                        if (this is HomeFeedClient) {
+                            val feed = loadHomeFeed()
+                            feed.getPagedData(feed.tabs.firstOrNull()).pagedData.loadPage(null)
+                        }
+                    }
+                }.onSuccess { homeFeedWarmed = true }
+            }
         }
         scope.launch {
             app.networkFlow.combine(all) { a, b -> a to b }.collect { (conn, all) ->
@@ -208,6 +228,31 @@ class ExtensionLoader(
                 }
             }
         }
+    }
+
+    // First-run: copy the extension APKs bundled in assets/extensions into the
+    // file-extensions dir so Spotify/Deezer/Combine/Downloader are pre-installed,
+    // and default Combine's stream quality to MP3 320 (medium).
+    private fun seedBundledExtensions() {
+        if (settings.getBoolean(SEED_FLAG, false)) return
+        // Pin Combine playback to MP3 320 by selecting the "320kbps" server by
+        // title (medium would pick the median of 5 servers = 128kbps). Stored in
+        // the global app settings so the extension can't overwrite it. Done first
+        // and independently so an APK-copy failure can't skip it.
+        settings.edit(commit = true) { putString("forced_quality_echo_combine", "320kbps") }
+        runCatching {
+            val dir = File(app.context.filesDir, "extensions").apply { mkdirs() }
+            dir.setWritable(true, true)
+            val assets = app.context.assets
+            (assets.list("extensions") ?: emptyArray()).filter { it.endsWith(".apk") }
+                .forEach { name ->
+                    val target = File(dir, name)
+                    if (!target.exists()) assets.open("extensions/$name").use { input ->
+                        target.outputStream().use { input.copyTo(it) }
+                    }
+                }
+        }.onFailure { android.util.Log.e("AASeed", "apk seed failed", it) }
+        settings.edit { putBoolean(SEED_FLAG, true) }
     }
 
     private fun <T> List<T>.sorted(type: ExtensionType, id: (T) -> String): List<T> {
@@ -259,6 +304,7 @@ class ExtensionLoader(
         fun ExtensionType.priorityKey() = "priority_${this.feature}"
 
         const val LAST_EXTENSION_KEY = "last_extension"
+        private const val SEED_FLAG = "bundled_extensions_seeded_v4"
     }
 
 }
