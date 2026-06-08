@@ -4,17 +4,27 @@
     android:height="108dp"
     android:viewportWidth="40"
     android:viewportHeight="40">
-  <path
-      android:pathData="M0,0h40v40h-40z">
+  <path android:pathData="M0,0h40v40h-40z">
     <aapt:attr name="android:fillColor">
-      <gradient 
-          android:centerX="16"
-          android:centerY="16"
-          android:gradientRadius="16"
+      <gradient
+          android:centerX="20"
+          android:centerY="16.8"
+          android:gradientRadius="28.8"
           android:type="radial">
-        <item android:offset="0" android:color="@color/app_color_highlight"/>
-        <item android:offset="1" android:color="@color/app_color_shadow"/>
+        <item android:offset="0" android:color="#FF2F7BF0"/>
+        <item android:offset="1" android:color="#FF142A44"/>
       </gradient>
     </aapt:attr>
   </path>
+  <!-- echo rings, fading outward -->
+  <path android:pathData="M5.5,20 a14.5,14.5 0 1,0 29,0 a14.5,14.5 0 1,0 -29,0Z"
+      android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="0.9" android:strokeAlpha="0.30"/>
+  <path android:pathData="M2.5,20 a17.5,17.5 0 1,0 35,0 a17.5,17.5 0 1,0 -35,0Z"
+      android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="0.9" android:strokeAlpha="0.19"/>
+  <path android:pathData="M-0.5,20 a20.5,20.5 0 1,0 41,0 a20.5,20.5 0 1,0 -41,0Z"
+      android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="0.9" android:strokeAlpha="0.11"/>
+  <path android:pathData="M-3.5,20 a23.5,23.5 0 1,0 47,0 a23.5,23.5 0 1,0 -47,0Z"
+      android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="0.9" android:strokeAlpha="0.06"/>
+  <path android:pathData="M-6.5,20 a26.5,26.5 0 1,0 53,0 a26.5,26.5 0 1,0 -53,0Z"
+      android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="0.9" android:strokeAlpha="0.03"/>
 </vector>
