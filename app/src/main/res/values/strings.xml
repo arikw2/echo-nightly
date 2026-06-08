@@ -137,6 +137,8 @@
     <string name="system">System</string>
     <string name="check_for_updates">Check for Updates</string>
     <string name="check_for_updates_summary">Look for new updates of both app and extensions, when you open the app.</string>
+    <string name="check_for_updates_now">Check for updates now</string>
+    <string name="check_for_updates_now_summary">Check for a new app or extension version right now.</string>
 
     <string name="install">Install</string>
     <string name="app">App</string>

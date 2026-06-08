@@ -50,6 +50,20 @@ class SettingsOtherFragment : BaseSettingsFragment() {
             }
 
             TransitionPreference(context).apply {
+                key = "check_for_updates_now"
+                title = getString(R.string.check_for_updates_now)
+                summary = getString(R.string.check_for_updates_now_summary)
+                layoutResource = R.layout.preference
+                isIconSpaceReserved = false
+                screen.addPreference(this)
+                setOnPreferenceClickListener {
+                    val viewModel by activityViewModel<ExtensionsViewModel>()
+                    viewModel.update(requireActivity(), true)
+                    true
+                }
+            }
+
+            TransitionPreference(context).apply {
                 key = "export"
                 title = getString(R.string.export_settings)
                 summary = getString(R.string.export_settings_summary)
