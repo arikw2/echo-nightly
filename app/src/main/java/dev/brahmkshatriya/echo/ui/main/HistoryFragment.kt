@@ -87,7 +87,7 @@ class HistoryFragment : Fragment(R.layout.fragment_history) {
                 playlistItemAuthor.marquee()
                 playlistItemNowPlaying.isVisible = false
                 playlistCurrentItem.isVisible = false
-                root.setOnClickListener { onItemClicked(getItem(bindingAdapterPosition)) }
+                root.setOnClickListener { onItemClicked(getItem(holder.bindingAdapterPosition)) }
             }
         }
 
