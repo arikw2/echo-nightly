@@ -36,6 +36,18 @@
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:background="?colorOutlineVariant" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/historyButton"
+            style="?attr/materialIconButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="4dp"
+            android:contentDescription="@string/recently_played"
+            app:icon="@drawable/ic_history"
+            app:iconSize="24dp" />
     </FrameLayout>
 
     <FrameLayout

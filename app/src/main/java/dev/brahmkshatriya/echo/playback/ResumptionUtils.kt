@@ -107,6 +107,10 @@ object ResumptionUtils {
     fun Context.recoverRecents(): List<MediaState.Unloaded<Track>> =
         getFromCache<List<MediaState.Unloaded<Track>>>(RECENTS, FOLDER) ?: emptyList()
 
+    fun clearRecents(context: Context) {
+        context.saveToCache(RECENTS, emptyList<MediaState.Unloaded<Track>>(), FOLDER)
+    }
+
     fun Context.recoverPlaylist(
         app: App,
         downloads: List<Downloader.Info>,

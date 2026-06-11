@@ -102,6 +102,20 @@
     <string name="equalizer">Equalizer</string>
     <string name="equalizer_summary">Open the device equalizer settings</string>
 
+    <string name="crossfade">Crossfade</string>
+    <string name="crossfade_summary">Fade between tracks for smooth transitions</string>
+    <string-array name="crossfade_durations">
+        <item>Off</item>
+        <item>3 seconds</item>
+        <item>5 seconds</item>
+        <item>8 seconds</item>
+        <item>10 seconds</item>
+        <item>12 seconds</item>
+    </string-array>
+
+    <string name="recently_played">Recently Played</string>
+    <string name="clear_history">Clear History</string>
+
     <string name="stream_quality">Stream Quality</string>
     <string name="stream_quality_summary">Select the default quality of the stream</string>
     <string name="x_specific_quality_summary">%1$s specific stream quality, will override the default stream quality selection</string>

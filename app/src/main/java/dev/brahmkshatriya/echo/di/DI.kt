@@ -16,6 +16,7 @@ import dev.brahmkshatriya.echo.ui.extensions.add.AddViewModel
 import dev.brahmkshatriya.echo.ui.extensions.login.LoginUserListViewModel
 import dev.brahmkshatriya.echo.ui.extensions.login.LoginViewModel
 import dev.brahmkshatriya.echo.ui.feed.FeedViewModel
+import dev.brahmkshatriya.echo.ui.main.HistoryViewModel
 import dev.brahmkshatriya.echo.ui.main.search.SearchViewModel
 import dev.brahmkshatriya.echo.ui.media.MediaViewModel
 import dev.brahmkshatriya.echo.ui.player.PlayerViewModel
@@ -71,6 +72,7 @@ object DI {
         viewModelOf(::AddViewModel)
         viewModelOf(::LoginViewModel)
 
+        viewModelOf(::HistoryViewModel)
         viewModelOf(::FeedViewModel)
         viewModelOf(::SearchViewModel)
         viewModelOf(::MediaViewModel)

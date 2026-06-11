@@ -29,6 +29,7 @@ import dev.brahmkshatriya.echo.ui.feed.FeedData
 import dev.brahmkshatriya.echo.ui.feed.FeedViewModel
 import dev.brahmkshatriya.echo.ui.main.MainFragment.Companion.applyInsets
 import dev.brahmkshatriya.echo.ui.playlist.create.CreatePlaylistBottomSheet
+import dev.brahmkshatriya.echo.ui.common.FragmentUtils.openFragment
 import dev.brahmkshatriya.echo.ui.settings.SettingsBottomSheet
 import dev.brahmkshatriya.echo.utils.ContextUtils.observe
 import dev.brahmkshatriya.echo.utils.Serializer.getSerialized
@@ -72,6 +73,9 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
         ) { (curr, bg) ->
             if (curr != 2) return@observe
             uiViewModel.currentNavBackground.value = bg
+        }
+        binding.historyButton.setOnClickListener { v ->
+            openFragment<HistoryFragment>(v)
         }
         applyInsets(binding.recyclerView, binding.appBarOutline, 72) {
             binding.createPlaylistContainer.applyInsets(it)
