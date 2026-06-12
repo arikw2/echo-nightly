@@ -27,9 +27,12 @@ jobs:
       - name: Build extension APK
         run: ./gradlew :extension-qobuz:assembleRelease
 
-      - name: Upload APK artifact
+      - name: Rename to .eapk
+        run: cp extension-qobuz/build/outputs/apk/release/extension-qobuz-release-unsigned.apk extension-qobuz-lossless.eapk
+
+      - name: Upload .eapk artifact
         uses: actions/upload-artifact@v4
         with:
           name: extension-qobuz
-          path: extension-qobuz/build/outputs/apk/release/extension-qobuz-release-unsigned.apk
+          path: extension-qobuz-lossless.eapk
           retention-days: 30
