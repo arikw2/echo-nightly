@@ -14,6 +14,7 @@ import dev.brahmkshatriya.echo.playback.PlayerService.Companion.CACHE_SIZE
 import dev.brahmkshatriya.echo.playback.PlayerService.Companion.CLOSE_PLAYER
 import dev.brahmkshatriya.echo.playback.PlayerService.Companion.MORE_BRAIN_CAPACITY
 import dev.brahmkshatriya.echo.playback.PlayerService.Companion.SKIP_SILENCE
+import dev.brahmkshatriya.echo.playback.listener.CrossfadeListener
 import dev.brahmkshatriya.echo.playback.PlayerService.Companion.COMBINE_FORCED_QUALITY
 import dev.brahmkshatriya.echo.playback.PlayerService.Companion.STREAM_QUALITY
 import dev.brahmkshatriya.echo.playback.PlayerService.Companion.UNMETERED_STREAM_QUALITY
@@ -59,6 +60,18 @@ class SettingsPlayerFragment : BaseSettingsFragment() {
                     summary = getString(R.string.audio_fx_summary)
                     layoutResource = R.layout.preference
                     isIconSpaceReserved = false
+                    addPreference(this)
+                }
+
+                MaterialListPreference(context).apply {
+                    key = CrossfadeListener.CROSSFADE_DURATION
+                    title = getString(R.string.crossfade)
+                    summary = getString(R.string.crossfade_summary)
+                    entries = context.resources.getStringArray(R.array.crossfade_durations)
+                    entryValues = arrayOf("0", "3", "5", "8", "10", "12")
+                    layoutResource = R.layout.preference
+                    isIconSpaceReserved = false
+                    setDefaultValue("0")
                     addPreference(this)
                 }
 

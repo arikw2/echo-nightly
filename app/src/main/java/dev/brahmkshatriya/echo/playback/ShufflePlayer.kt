@@ -1,16 +1,19 @@
 package dev.brahmkshatriya.echo.playback
 
+import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ShuffleOrder
+import dev.brahmkshatriya.echo.playback.ResumptionUtils.recoverRecents
 
 @Suppress("unused")
 @OptIn(UnstableApi::class)
 class ShufflePlayer(
     private val player: ExoPlayer,
+    private val context: Context? = null,
 ) : ForwardingPlayer(player) {
 
     init {
@@ -25,8 +28,18 @@ class ShufflePlayer(
     override fun setShuffleModeEnabled(enabled: Boolean) {
         if (enabled) original = getQueue()
         isShuffled = enabled
-        changeQueue(if (enabled) original.shuffled() else original)
+        changeQueue(if (enabled) smartShuffle(original) else original)
         player.shuffleModeEnabled = enabled
+    }
+
+    private fun smartShuffle(tracks: List<MediaItem>): List<MediaItem> {
+        val ctx = context ?: return tracks.shuffled()
+        val recentIds = ctx.recoverRecents().map { it.item.id }.toSet()
+        if (recentIds.isEmpty()) return tracks.shuffled()
+        val currId = currentMediaItem?.mediaId
+        val shuffled = tracks.shuffled()
+        val (recent, other) = shuffled.partition { it.mediaId != currId && it.mediaId in recentIds }
+        return other + recent
     }
 
     override fun hasNextMediaItem(): Boolean {

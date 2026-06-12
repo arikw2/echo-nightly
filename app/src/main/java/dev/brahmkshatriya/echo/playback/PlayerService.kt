@@ -34,6 +34,7 @@ import dev.brahmkshatriya.echo.extensions.ExtensionLoader
 import dev.brahmkshatriya.echo.extensions.ExtensionUtils.extensionPrefId
 import dev.brahmkshatriya.echo.extensions.ExtensionUtils.prefs
 import dev.brahmkshatriya.echo.playback.listener.AudioFocusListener
+import dev.brahmkshatriya.echo.playback.listener.CrossfadeListener
 import dev.brahmkshatriya.echo.playback.listener.EffectsListener
 import dev.brahmkshatriya.echo.playback.listener.MediaSessionServiceListener
 import dev.brahmkshatriya.echo.playback.listener.PlayerEventListener
@@ -74,9 +75,12 @@ class PlayerService : MediaLibraryService() {
                     .buildUpon()
                     .setAudioOffloadPreferences(offloadPreferences(prefs.getBoolean(key, false)))
                     .build()
+            CrossfadeListener.CROSSFADE_DURATION -> if (exoPlayer.isPlaying) crossfade.startMonitoring()
         }
     }
+
     private val effects by lazy { EffectsListener(exoPlayer, this, state.session) }
+    private val crossfade by lazy { CrossfadeListener(exoPlayer, scope, app.settings) }
 
     private val downloader by inject<Downloader>()
     private val downloadFlow by lazy { downloader.flow }
@@ -86,7 +90,7 @@ class PlayerService : MediaLibraryService() {
         super.onCreate()
         setListener(MediaSessionServiceListener(this, getPendingIntent(this)))
 
-        val player = ShufflePlayer(exoPlayer)
+        val player = ShufflePlayer(exoPlayer, this)
         scope.launch(Dispatchers.Main) {
             mediaChangeFlow.collect { (o, n) -> player.onMediaItemChanged(o, n) }
         }
@@ -113,6 +117,7 @@ class PlayerService : MediaLibraryService() {
             TrackingListener(player, scope, extensions, state.current, app.throwFlow)
         )
         player.addListener(effects)
+        player.addListener(crossfade)
         app.settings.registerOnSharedPreferenceChangeListener(listener)
 
         val notificationProvider = DefaultMediaNotificationProvider.Builder(this)
