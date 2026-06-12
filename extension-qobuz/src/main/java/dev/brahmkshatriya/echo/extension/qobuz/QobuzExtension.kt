@@ -1,6 +1,7 @@
 package dev.brahmkshatriya.echo.extension.qobuz
 
 import dev.brahmkshatriya.echo.common.clients.ExtensionClient
+import dev.brahmkshatriya.echo.common.clients.HomeFeedClient
 import dev.brahmkshatriya.echo.common.clients.LoginClient
 import dev.brahmkshatriya.echo.common.clients.SearchFeedClient
 import dev.brahmkshatriya.echo.common.clients.TrackClient
@@ -24,7 +25,7 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 @Suppress("unused")
-class QobuzExtension : ExtensionClient, TrackClient, SearchFeedClient, LoginClient.CustomInput {
+class QobuzExtension : ExtensionClient, HomeFeedClient, TrackClient, SearchFeedClient, LoginClient.CustomInput {
 
     companion object {
         private const val QUALITY_KEY = "quality"
@@ -112,6 +113,10 @@ class QobuzExtension : ExtensionClient, TrackClient, SearchFeedClient, LoginClie
             User("squid_user", "squid.wtf (verified)", cover = null)
         else null
     }
+
+    // ---------- HomeFeedClient ----------
+
+    override suspend fun loadHomeFeed(): Feed<Shelf> = emptyList<Shelf>().toFeed()
 
     // ---------- SearchFeedClient ----------
 
