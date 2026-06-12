@@ -25,4 +25,5 @@ dependencyResolutionManagement {
 rootProject.name = "Echo"
 include(":app")
 include(":common")
+include(":extension-qobuz")
  
