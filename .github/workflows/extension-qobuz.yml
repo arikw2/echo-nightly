@@ -25,10 +25,10 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build extension APK
-        run: ./gradlew :extension-qobuz:assembleRelease
+        run: ./gradlew :extension-qobuz:assembleDebug
 
       - name: Rename to .eapk
-        run: cp extension-qobuz/build/outputs/apk/release/extension-qobuz-release-unsigned.apk extension-qobuz-lossless.eapk
+        run: cp extension-qobuz/build/outputs/apk/debug/extension-qobuz-debug.apk extension-qobuz-lossless.eapk
 
       - name: Upload .eapk artifact
         uses: actions/upload-artifact@v4
