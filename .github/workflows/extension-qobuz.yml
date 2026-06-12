@@ -1,0 +1,35 @@
+name: Build extension-qobuz
+
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - 'extension-qobuz/**'
+      - '.github/workflows/extension-qobuz.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 17
+          cache: 'gradle'
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build extension APK
+        run: ./gradlew :extension-qobuz:assembleRelease
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-qobuz
+          path: extension-qobuz/build/outputs/apk/release/extension-qobuz-release-unsigned.apk
+          retention-days: 30
