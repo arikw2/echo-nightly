@@ -64,11 +64,11 @@ class LyricsFragment : Fragment() {
     private var currentLyricsPos = -1
     private var currentLyrics: Lyrics.Lyric? = null
     private val lyricAdapter by lazy {
-        LyricAdapter(uiViewModel) { adapter, lyric ->
+        LyricAdapter(uiViewModel) { adapter, line ->
             if (adapter.itemCount <= 1) return@LyricAdapter
             currentLyricsPos = -1
-            playerVM.seekTo(lyric.startTime)
-            updateLyrics(lyric.startTime)
+            playerVM.seekTo(line.startTime)
+            updateLyrics(line.startTime)
         }
     }
 
@@ -84,21 +84,28 @@ class LyricsFragment : Fragment() {
     }
 
     private fun updateLyrics(current: Long) {
-        val lyrics = currentLyrics as? Lyrics.Timed ?: return
-        val currentTime = lyrics.list.getOrNull(currentLyricsPos)?.endTime ?: -1
-        if (currentTime < current || current <= 0) {
-            val currentIndex = lyrics.list.indexOfLast { lyric ->
-                lyric.startTime <= current
+        val idx = when (val lyrics = currentLyrics) {
+            is Lyrics.Timed -> lyrics.list.indexOfLast { it.startTime <= current }
+            is Lyrics.WordByWord -> lyrics.list.indexOfLast { line ->
+                line.firstOrNull()?.startTime?.let { it <= current } == true
             }
-            lyricAdapter.updateCurrent(currentIndex)
-            if (!shouldAutoScroll) return
-            binding.appBarLayout.setExpanded(false)
-            slideDown()
-            if (currentIndex < 0) return
-            val smoothScroller = CenterSmoothScroller(requireContext())
-            smoothScroller.targetPosition = currentIndex
-            layoutManager.startSmoothScroll(smoothScroller)
+            else -> return
         }
+        lyricAdapter.updateCurrent(idx, current)
+        if (idx != currentLyricsPos) {
+            currentLyricsPos = idx
+            scrollToLine(idx)
+        }
+    }
+
+    private fun scrollToLine(index: Int) {
+        if (!shouldAutoScroll) return
+        binding.appBarLayout.setExpanded(false)
+        slideDown()
+        if (index < 0) return
+        val smoothScroller = CenterSmoothScroller(requireContext())
+        smoothScroller.targetPosition = index
+        layoutManager.startSmoothScroll(smoothScroller)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -203,10 +210,10 @@ class LyricsFragment : Fragment() {
             binding.lyricsItem.bind(lyricsItem)
             currentLyricsPos = -1
             currentLyrics = lyricsItem?.lyrics
-            val list = when (val lyrics = currentLyrics) {
-                is Lyrics.Simple -> listOf(Lyrics.Item(lyrics.text, 0, 0))
-                is Lyrics.Timed -> lyrics.list
-                is Lyrics.WordByWord -> lyrics.list.flatten()
+            val list: List<LyricLine> = when (val lyrics = currentLyrics) {
+                is Lyrics.Simple -> listOf(LyricLine.Single(Lyrics.Item(lyrics.text, 0, 0)))
+                is Lyrics.Timed -> lyrics.list.map { LyricLine.Single(it) }
+                is Lyrics.WordByWord -> lyrics.list.map { LyricLine.WordGroup(it) }
                 null -> emptyList()
             }
             lyricAdapter.submitList(list)
