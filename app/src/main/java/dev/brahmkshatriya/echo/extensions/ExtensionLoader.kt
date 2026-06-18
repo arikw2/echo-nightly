@@ -240,14 +240,20 @@ class ExtensionLoader(
         // the global app settings so the extension can't overwrite it. Done first
         // and independently so an APK-copy failure can't skip it.
         settings.edit(commit = true) { putString("forced_quality_echo_combine", "320kbps") }
+        // Default the now-playing lyrics provider to the bundled LRCLIB extension
+        // (free synced lyrics). LyricsViewModel reads "last_lyrics_client" to pick.
+        settings.edit(commit = true) { putString("last_lyrics_client", "lrclib") }
         runCatching {
             val dir = File(app.context.filesDir, "extensions").apply { mkdirs() }
             dir.setWritable(true, true)
             val assets = app.context.assets
             (assets.list("extensions") ?: emptyArray()).filter { it.endsWith(".apk") }
                 .forEach { name ->
+                    // Overwrite: this block only runs once per SEED_FLAG bump, so
+                    // bumping the flag ships updated bundled extensions.
                     val target = File(dir, name)
-                    if (!target.exists()) assets.open("extensions/$name").use { input ->
+                    target.setWritable(true)
+                    assets.open("extensions/$name").use { input ->
                         target.outputStream().use { input.copyTo(it) }
                     }
                 }
@@ -304,7 +310,7 @@ class ExtensionLoader(
         fun ExtensionType.priorityKey() = "priority_${this.feature}"
 
         const val LAST_EXTENSION_KEY = "last_extension"
-        private const val SEED_FLAG = "bundled_extensions_seeded_v4"
+        private const val SEED_FLAG = "bundled_extensions_seeded_v12"
     }
 
 }

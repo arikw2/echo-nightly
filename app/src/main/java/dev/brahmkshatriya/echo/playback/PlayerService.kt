@@ -226,8 +226,18 @@ class PlayerService : MediaLibraryService() {
             // abstract highest/medium/lowest selection otherwise.
             val forced = app.settings.getString(forcedQualityKey(extensionId), null)
                 ?.takeIf { it.isNotBlank() }
-            val byTitle = forced?.let { p -> streamables.firstOrNull { it.title == p } }
-            val streamable = byTitle ?: streamables.select(app, extensionId) { it.quality }
+            val streamable = if (forced != null) {
+                // Exact preferred quality (e.g. "320kbps"); if this track doesn't
+                // expose it, take the highest-quality stream available instead of
+                // the abstract median (which can land on a low 128/OGG source).
+                streamables.firstOrNull { it.title == forced }
+                    ?: streamables.maxByOrNull { it.quality }
+                    ?: streamables.first()
+            } else streamables.select(app, extensionId) { it.quality }
+            android.util.Log.e(
+                "AAQuality",
+                "ext=$extensionId forced=$forced servers=${streamables.map { it.title to it.quality }} -> ${streamable.title to streamable.quality}"
+            )
             streamables.indexOf(streamable)
         } else -1
 

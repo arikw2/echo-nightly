@@ -17,7 +17,7 @@ class ShufflePlayer(
 ) : ForwardingPlayer(player) {
 
     init {
-        player.setShuffleOrder(ShuffleOrder.UnshuffledShuffleOrder(0))
+        resetShuffleOrder()
     }
 
     private fun getQueue() = (0 until mediaItemCount).map { player.getMediaItemAt(it) }
@@ -25,11 +25,28 @@ class ShufflePlayer(
     private var isShuffled = false
     private var original = getQueue()
 
+    // Pin ExoPlayer's internal ShuffleOrder to identity so its "shuffled" order
+    // equals the physical (already manually-shuffled) queue. Without this,
+    // ExoPlayer rebuilds a random DefaultShuffleOrder on every addMediaItems
+    // (e.g. AA background playlist expansion) → double-shuffle, wrong next/prev.
+    private fun resetShuffleOrder() {
+        player.setShuffleOrder(ShuffleOrder.UnshuffledShuffleOrder(player.mediaItemCount))
+    }
+
+    // A random slot strictly after the current item, so appended tracks join
+    // the shuffle instead of always landing at the very end.
+    private fun shuffledInsertIndex(): Int {
+        val lower = (currentMediaItemIndex + 1).coerceAtMost(mediaItemCount)
+        if (lower >= mediaItemCount) return mediaItemCount
+        return (lower..mediaItemCount).random()
+    }
+
     override fun setShuffleModeEnabled(enabled: Boolean) {
         if (enabled) original = getQueue()
         isShuffled = enabled
         changeQueue(if (enabled) smartShuffle(original) else original)
         player.shuffleModeEnabled = enabled
+        resetShuffleOrder()
     }
 
     private fun smartShuffle(tracks: List<MediaItem>): List<MediaItem> {
@@ -64,6 +81,7 @@ class ShufflePlayer(
         player.addMediaItems(0, before)
         player.removeMediaItems(currentMediaItemIndex + 1, mediaItemCount)
         player.addMediaItems(currentMediaItemIndex + 1, after)
+        resetShuffleOrder()
     }
 
     fun onMediaItemChanged(old: MediaItem, new: MediaItem) {
@@ -76,25 +94,32 @@ class ShufflePlayer(
 
     override fun addMediaItem(mediaItem: MediaItem) {
         original = original + mediaItem
-        player.addMediaItem(mediaItem)
+        if (isShuffled && mediaItemCount > 0) player.addMediaItem(shuffledInsertIndex(), mediaItem)
+        else player.addMediaItem(mediaItem)
+        resetShuffleOrder()
         log("Add media item")
     }
 
     override fun addMediaItems(mediaItems: MutableList<MediaItem>) {
         original = original + mediaItems
-        player.addMediaItems(mediaItems)
+        if (isShuffled && mediaItemCount > 0) mediaItems.forEach {
+            player.addMediaItem(shuffledInsertIndex(), it)
+        } else player.addMediaItems(mediaItems)
+        resetShuffleOrder()
         log("Add media items")
     }
 
     override fun addMediaItem(index: Int, mediaItem: MediaItem) {
         original = original + mediaItem
         player.addMediaItem(index, mediaItem)
+        resetShuffleOrder()
         log("Add media item at $index")
     }
 
     override fun addMediaItems(index: Int, mediaItems: MutableList<MediaItem>) {
         original = original + mediaItems
         player.addMediaItems(index, mediaItems)
+        resetShuffleOrder()
         log("Add media items at $index")
     }
 
@@ -105,6 +130,7 @@ class ShufflePlayer(
     override fun removeMediaItem(index: Int) {
         original = original - getItemAt(index)
         player.removeMediaItem(index)
+        resetShuffleOrder()
         log("Remove media item at $index")
     }
 
@@ -112,6 +138,7 @@ class ShufflePlayer(
         original =
             original - (fromIndex until toIndex).map { getItemAt(it) }.toSet()
         player.removeMediaItems(fromIndex, toIndex)
+        resetShuffleOrder()
         log("Remove media items from $fromIndex to $toIndex")
     }
 
@@ -121,6 +148,7 @@ class ShufflePlayer(
             set(originalIndex, mediaItem)
         }
         player.replaceMediaItem(index, mediaItem)
+        resetShuffleOrder()
         log("Replace media item at $index")
     }
 
@@ -136,36 +164,48 @@ class ShufflePlayer(
             }
         }
         player.replaceMediaItems(fromIndex, toIndex, mediaItems)
+        resetShuffleOrder()
         log("Replace media items from $fromIndex to $toIndex")
+    }
+
+    // After a fresh queue is set while shuffle is already on, actually shuffle it
+    // (preserving the current track); otherwise just keep the identity order.
+    private fun applyShuffleIfNeeded() {
+        if (isShuffled) changeQueue(smartShuffle(getQueue())) else resetShuffleOrder()
     }
 
     override fun setMediaItem(mediaItem: MediaItem) {
         original = listOf(mediaItem)
         player.setMediaItem(mediaItem)
+        resetShuffleOrder()
         log("Set media item")
     }
 
     override fun setMediaItem(mediaItem: MediaItem, resetPosition: Boolean) {
         original = listOf(mediaItem)
         player.setMediaItem(mediaItem, resetPosition)
+        resetShuffleOrder()
         log("Set media item")
     }
 
     override fun setMediaItem(mediaItem: MediaItem, startPositionMs: Long) {
         original = listOf(mediaItem)
         player.setMediaItem(mediaItem, startPositionMs)
+        resetShuffleOrder()
         log("Set media item")
     }
 
     override fun setMediaItems(mediaItems: MutableList<MediaItem>) {
         original = mediaItems
         player.setMediaItems(mediaItems)
+        applyShuffleIfNeeded()
         log("Set media items")
     }
 
     override fun setMediaItems(mediaItems: MutableList<MediaItem>, resetPosition: Boolean) {
         original = mediaItems
         player.setMediaItems(mediaItems, resetPosition)
+        applyShuffleIfNeeded()
         log("Set media items")
     }
 
@@ -180,12 +220,14 @@ class ShufflePlayer(
             startIndex.coerceAtMost(mediaItems.size - 1),
             startPositionMs
         )
+        applyShuffleIfNeeded()
         log("Set media items")
     }
 
     override fun clearMediaItems() {
         original = emptyList()
         player.clearMediaItems()
+        resetShuffleOrder()
         log("Clear media items")
     }
 

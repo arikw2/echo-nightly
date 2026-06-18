@@ -21,7 +21,7 @@ android {
         applicationId = "dev.brahmkshatriya.echo"
         minSdk = 24
         targetSdk = 36
-        versionCode = gitCount
+        versionCode = 100000 + gitCount
         versionName = "v${version}_$gitHash($gitCount)"
     }
 

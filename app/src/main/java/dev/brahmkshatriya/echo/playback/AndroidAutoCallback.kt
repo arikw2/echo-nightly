@@ -137,8 +137,8 @@ abstract class AndroidAutoCallback(
 
             ARTIST -> extension.getList<ArtistClient> {
                 val id = parentId.substringAfter("$ARTIST/").substringBefore("/")
-                val artist = loadArtist(Artist(id, ""))
-                loadFeed(artist).toMediaItems(artist.id, context, extId, page)
+                val artist = loadArtist(itemMap[id] as Artist)
+                loadFeed(artist).toMediaItems(id, context, extId, page)
             }
 
             LIST -> extension.getList<ExtensionClient> {
@@ -280,18 +280,24 @@ abstract class AndroidAutoCallback(
 
         // Top-level tabs for an extension: Home / Search / Library. Android Auto
         // renders these root browsable children as the tab bar.
+        // Hebrew tab labels; Library first so Android Auto opens it by default.
         private suspend fun feedTabs(extension: Extension<*>, context: Context) = listOfNotNull(
-            if (extension.isClient<HomeFeedClient>())
-                browsableItem("$ROOT/${extension.id}/$HOME", context.getString(R.string.home))
-            else null,
-            browsableItem("$ROOT/${extension.id}/$RECENT", "Recent"),
-            if (extension.isClient<SearchFeedClient>())
-                browsableItem("$ROOT/${extension.id}/$SEARCH", context.getString(R.string.search))
-            else null,
             if (extension.isClient<LibraryFeedClient>())
-                browsableItem("$ROOT/${extension.id}/$LIBRARY", context.getString(R.string.library))
+                browsableItem("$ROOT/${extension.id}/$LIBRARY", "ספרייה")
+            else null,
+            if (extension.isClient<HomeFeedClient>())
+                browsableItem("$ROOT/${extension.id}/$HOME", "מסך הבית")
+            else null,
+            browsableItem("$ROOT/${extension.id}/$RECENT", "לאחרונה"),
+            if (extension.isClient<SearchFeedClient>())
+                browsableItem("$ROOT/${extension.id}/$SEARCH", "חיפוש")
             else null,
         )
+
+        // Fallback artwork (app icon) so grid tiles without a cover don't render
+        // Android Auto's broken-image "!" triangle.
+        private fun defaultArt(context: Context): Uri =
+            context.resources.getUri(R.drawable.ic_launcher_foreground)
 
         private fun Resources.getUri(int: Int): Uri {
             val scheme = ContentResolver.SCHEME_ANDROID_RESOURCE
@@ -389,7 +395,8 @@ abstract class AndroidAutoCallback(
                 val id = hashCode().toString()
                 itemMap[id] = this
                 val (page, type) = when (this) {
-                    is Artist, is Radio -> USER to MediaMetadata.MEDIA_TYPE_MIXED
+                    is Artist -> ARTIST to MediaMetadata.MEDIA_TYPE_ARTIST
+                    is Radio -> RADIO to MediaMetadata.MEDIA_TYPE_MIXED
                     is Album -> ALBUM to MediaMetadata.MEDIA_TYPE_ALBUM
                     is Playlist -> PLAYLIST to MediaMetadata.MEDIA_TYPE_PLAYLIST
                     else -> throw IllegalStateException("Invalid type")
@@ -399,7 +406,7 @@ abstract class AndroidAutoCallback(
                     title,
                     subtitleWithE,
                     true,
-                    cover?.toUri(context),
+                    cover?.toUri(context) ?: defaultArt(context),
                     type
                 )
             }
@@ -434,14 +441,17 @@ abstract class AndroidAutoCallback(
             is Shelf.Category -> {
                 val items = feed
                 if (items != null) feedMap[id] = items
-                browsableItem("$ROOT/$extId/$FEED/$id", title, subtitle, items != null)
+                browsableItem(
+                    "$ROOT/$extId/$FEED/$id", title, subtitle, items != null,
+                    defaultArt(context)
+                )
             }
 
             is Shelf.Item -> media.toMediaItem(context, extId)
             is Shelf.Lists<*> -> {
                 val id = "${id.hashCode()}"
                 listsMap[id] = this
-                browsableItem("$ROOT/$extId/$LIST/$id", title, subtitle)
+                browsableItem("$ROOT/$extId/$LIST/$id", title, subtitle, true, defaultArt(context))
             }
         }
 
