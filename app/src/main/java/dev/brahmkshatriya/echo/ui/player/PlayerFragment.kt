@@ -18,7 +18,6 @@ import android.view.ViewOutlineProvider
 import android.widget.ProgressBar
 import androidx.annotation.OptIn
 import androidx.appcompat.content.res.AppCompatResources
-import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
 import androidx.core.view.doOnLayout
@@ -126,7 +125,7 @@ class PlayerFragment : Fragment() {
 
     private fun configureLyricsPreview() {
         val binding = binding!!
-        binding.lyricsPreviewCard.setOnClickListener {
+        binding.lyricCurrent.setOnClickListener {
             uiViewModel.lastMoreTab = R.id.lyrics
             uiViewModel.changeMoreState(STATE_EXPANDED)
         }
@@ -135,11 +134,10 @@ class PlayerFragment : Fragment() {
                 ?.result?.getOrNull()?.lyrics as? Lyrics.Timed
             val lines = timed?.list?.filter { it.text.isNotBlank() }
             lyricLines = lines
-            binding.lyricsPreviewCard.isVisible = !lines.isNullOrEmpty()
+            binding.lyricCurrent.isVisible = !lines.isNullOrEmpty()
             updateLyricPreview(viewModel.progress.value.first)
         }
         observe(viewModel.progress) { (curr, _) -> updateLyricPreview(curr) }
-        observe(uiViewModel.playerColors) { applyLyricPreviewColors(it) }
     }
 
     private fun updateLyricPreview(pos: Long) {
@@ -149,20 +147,6 @@ class PlayerFragment : Fragment() {
         var idx = lines.indexOfLast { it.startTime <= pos }
         if (idx < 0) idx = 0
         b.lyricCurrent.text = lines[idx].text
-        b.lyricPrev.text = lines.getOrNull(idx - 1)?.text.orEmpty()
-        b.lyricNext.text = lines.getOrNull(idx + 1)?.text.orEmpty()
-    }
-
-    private fun applyLyricPreviewColors(colors: PlayerColors?) {
-        val b = binding ?: return
-        val c = colors ?: requireContext().defaultPlayerColors()
-        b.lyricsPreviewCard.setCardBackgroundColor(c.accent)
-        val onAccent =
-            if (ColorUtils.calculateLuminance(c.accent) > 0.5) Color.BLACK else Color.WHITE
-        b.lyricCurrent.setTextColor(onAccent)
-        val faded = ColorUtils.setAlphaComponent(onAccent, 140)
-        b.lyricPrev.setTextColor(faded)
-        b.lyricNext.setTextColor(faded)
     }
 
     private val collapseHeight by lazy {
