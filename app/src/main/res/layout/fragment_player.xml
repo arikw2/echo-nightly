@@ -80,69 +80,40 @@
             <View
                 android:id="@+id/player_track_cover_placeholder"
                 style="@style/PlayerTrackCoverContainer"
-                app:layout_constraintBottom_toTopOf="@id/lyrics_preview_card"
+                app:layout_constraintBottom_toTopOf="@id/player_controls"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <!-- Spotify-style synced-lyrics preview. GONE unless the current
-                 track has timed lyrics; tinted by the album-art palette;
-                 tap to open the full lyrics view. -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/lyrics_preview_card"
+            <!-- Spotify-style synced-lyrics line. GONE unless the current track
+                 has timed lyrics; floats over the bottom of the artwork and
+                 tracks playback; tap to open the full lyrics view. -->
+            <TextView
+                android:id="@+id/lyric_current"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="24dp"
-                android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
+                android:ellipsize="end"
                 android:focusable="true"
+                android:maxLines="3"
+                android:paddingVertical="4dp"
+                android:shadowColor="#B3000000"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="8"
+                android:textColor="@android:color/white"
+                android:textSize="26sp"
+                android:textStyle="bold"
                 android:visibility="gone"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp"
                 app:layout_constraintBottom_toTopOf="@id/player_controls"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/player_track_cover_placeholder"
-                app:layout_constraintWidth_max="640dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:paddingHorizontal="20dp"
-                    android:paddingVertical="16dp">
-
-                    <TextView
-                        android:id="@+id/lyric_prev"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                        tools:text="First things first, I'ma say all the words inside my head" />
-
-                    <TextView
-                        android:id="@+id/lyric_current"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginVertical="6dp"
-                        android:ellipsize="end"
-                        android:maxLines="2"
-                        android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-                        android:textStyle="bold"
-                        tools:text="I'm fired up, and tired of the way that things have been" />
-
-                    <TextView
-                        android:id="@+id/lyric_next"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                        tools:text="The way that things have been, oh-ooh" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                app:layout_constraintWidth_max="640dp"
+                tools:text="She rolls over in the mornin' to the love of her life"
+                tools:visibility="visible" />
 
             <include
                 android:id="@+id/player_controls"
@@ -153,7 +124,7 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/lyrics_preview_card"
+                app:layout_constraintTop_toBottomOf="@+id/player_track_cover_placeholder"
                 app:layout_constraintWidth_max="640dp" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
