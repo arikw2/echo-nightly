@@ -18,6 +18,7 @@ import android.view.ViewOutlineProvider
 import android.widget.ProgressBar
 import androidx.annotation.OptIn
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
 import androidx.core.view.doOnLayout
@@ -46,6 +47,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN
 import com.google.android.material.slider.Slider
 import dev.brahmkshatriya.echo.R
 import dev.brahmkshatriya.echo.common.models.EchoMediaItem
+import dev.brahmkshatriya.echo.common.models.Lyrics
 import dev.brahmkshatriya.echo.common.models.Streamable
 import dev.brahmkshatriya.echo.databinding.FragmentPlayerBinding
 import dev.brahmkshatriya.echo.playback.MediaItemUtils.background
@@ -66,6 +68,7 @@ import dev.brahmkshatriya.echo.ui.media.more.MediaMoreBottomSheet
 import dev.brahmkshatriya.echo.ui.player.PlayerColors.Companion.defaultPlayerColors
 import dev.brahmkshatriya.echo.ui.player.PlayerColors.Companion.getColorsFrom
 import dev.brahmkshatriya.echo.ui.player.PlayerTrackAdapter.Companion.configureClicking
+import dev.brahmkshatriya.echo.ui.player.more.lyrics.LyricsViewModel
 import dev.brahmkshatriya.echo.ui.player.quality.FormatUtils.getDetails
 import dev.brahmkshatriya.echo.ui.player.quality.QualitySelectionBottomSheet
 import dev.brahmkshatriya.echo.utils.ContextUtils.emit
@@ -94,6 +97,7 @@ class PlayerFragment : Fragment() {
     private var binding by autoClearedNullable<FragmentPlayerBinding>()
     private val viewModel by activityViewModel<PlayerViewModel>()
     private val uiViewModel by activityViewModel<UiViewModel>()
+    private val lyricsViewModel by activityViewModel<LyricsViewModel>()
     private val adapter by lazy {
         PlayerTrackAdapter(uiViewModel, viewModel.playerState.current, adapterListener)
     }
@@ -114,6 +118,51 @@ class PlayerFragment : Fragment() {
         configureColors()
         configurePlayerControls()
         configureBackgroundPlayerView()
+        configureLyricsPreview()
+    }
+
+    // Spotify-style synced-lyrics preview on the expanded player face.
+    private var lyricLines: List<Lyrics.Item>? = null
+
+    private fun configureLyricsPreview() {
+        val binding = binding!!
+        binding.lyricsPreviewCard.setOnClickListener {
+            uiViewModel.lastMoreTab = R.id.lyrics
+            uiViewModel.changeMoreState(STATE_EXPANDED)
+        }
+        observe(lyricsViewModel.lyricsState) { state ->
+            val timed = (state as? LyricsViewModel.State.Loaded)
+                ?.result?.getOrNull()?.lyrics as? Lyrics.Timed
+            val lines = timed?.list?.filter { it.text.isNotBlank() }
+            lyricLines = lines
+            binding.lyricsPreviewCard.isVisible = !lines.isNullOrEmpty()
+            updateLyricPreview(viewModel.progress.value.first)
+        }
+        observe(viewModel.progress) { (curr, _) -> updateLyricPreview(curr) }
+        observe(uiViewModel.playerColors) { applyLyricPreviewColors(it) }
+    }
+
+    private fun updateLyricPreview(pos: Long) {
+        val b = binding ?: return
+        val lines = lyricLines
+        if (lines.isNullOrEmpty()) return
+        var idx = lines.indexOfLast { it.startTime <= pos }
+        if (idx < 0) idx = 0
+        b.lyricCurrent.text = lines[idx].text
+        b.lyricPrev.text = lines.getOrNull(idx - 1)?.text.orEmpty()
+        b.lyricNext.text = lines.getOrNull(idx + 1)?.text.orEmpty()
+    }
+
+    private fun applyLyricPreviewColors(colors: PlayerColors?) {
+        val b = binding ?: return
+        val c = colors ?: requireContext().defaultPlayerColors()
+        b.lyricsPreviewCard.setCardBackgroundColor(c.accent)
+        val onAccent =
+            if (ColorUtils.calculateLuminance(c.accent) > 0.5) Color.BLACK else Color.WHITE
+        b.lyricCurrent.setTextColor(onAccent)
+        val faded = ColorUtils.setAlphaComponent(onAccent, 140)
+        b.lyricPrev.setTextColor(faded)
+        b.lyricNext.setTextColor(faded)
     }
 
     private val collapseHeight by lazy {
