@@ -134,7 +134,12 @@ class PlayerFragment : Fragment() {
                 ?.result?.getOrNull()?.lyrics as? Lyrics.Timed
             val lines = timed?.list?.filter { it.text.isNotBlank() }
             lyricLines = lines
-            binding.lyricCurrent.isVisible = !lines.isNullOrEmpty()
+            // Mirror the controls' current fade state so the overlay only shows
+            // on the player face, never over the expanded lyrics/more sheet.
+            binding.lyricCurrent.run {
+                isVisible = !lines.isNullOrEmpty() && binding.playerControls.root.isVisible
+                alpha = binding.playerControls.root.alpha
+            }
             updateLyricPreview(viewModel.progress.value.first)
         }
         observe(viewModel.progress) { (curr, _) -> updateLyricPreview(curr) }
@@ -247,6 +252,13 @@ class PlayerFragment : Fragment() {
                 translationY = collapseHeight * offset * 2
                 alpha = alphaInv
                 isVisible = offset < 1
+            }
+            // Keep the floating lyric line in lock-step with the controls so it
+            // doesn't bleed through the (translucent) lyrics/more sheet.
+            binding.lyricCurrent.run {
+                translationY = collapseHeight * offset * 2
+                alpha = alphaInv
+                isVisible = offset < 1 && !lyricLines.isNullOrEmpty()
             }
             currTop = uiViewModel.run {
                 val top = if (playerSheetState.value != STATE_EXPANDED) 0
