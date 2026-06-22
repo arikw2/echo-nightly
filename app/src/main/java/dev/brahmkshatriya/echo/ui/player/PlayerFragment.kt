@@ -134,6 +134,7 @@ class PlayerFragment : Fragment() {
                 ?.result?.getOrNull()?.lyrics as? Lyrics.Timed
             val lines = timed?.list?.filter { it.text.isNotBlank() }
             lyricLines = lines
+            currentLyricIndex = -1
             // Mirror the controls' current fade state so the overlay only shows
             // on the player face, never over the expanded lyrics/more sheet.
             binding.lyricCurrent.run {
@@ -145,13 +146,33 @@ class PlayerFragment : Fragment() {
         observe(viewModel.progress) { (curr, _) -> updateLyricPreview(curr) }
     }
 
+    // Index of the line currently shown on the overlay, to detect when the
+    // line changes so we can crossfade to the next one.
+    private var currentLyricIndex = -1
+
     private fun updateLyricPreview(pos: Long) {
         val b = binding ?: return
         val lines = lyricLines
         if (lines.isNullOrEmpty()) return
         var idx = lines.indexOfLast { it.startTime <= pos }
         if (idx < 0) idx = 0
-        b.lyricCurrent.text = lines[idx].text
+        if (idx == currentLyricIndex) return
+        val animate = currentLyricIndex != -1
+        currentLyricIndex = idx
+        val text = lines[idx].text
+        val view = b.lyricCurrent
+        // Skip the crossfade on the first line, or while the overlay is mid-fade
+        // with the sheet (its alpha is owned by updateCollapsed then).
+        if (!animate || view.alpha < 0.99f) {
+            view.animate().cancel()
+            view.text = text
+            return
+        }
+        view.animate().cancel()
+        view.animate().alpha(0f).setDuration(180L).withEndAction {
+            view.text = text
+            view.animate().alpha(1f).setDuration(220L).start()
+        }.start()
     }
 
     private val collapseHeight by lazy {
