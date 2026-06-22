@@ -10,7 +10,9 @@ import dev.brahmkshatriya.echo.di.App
 import dev.brahmkshatriya.echo.utils.ContextUtils.appVersion
 import dev.brahmkshatriya.echo.utils.ContextUtils.getTempFile
 import dev.brahmkshatriya.echo.utils.Serializer.toData
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -23,6 +25,32 @@ import java.util.zip.ZipFile
 object AppUpdater {
 
     private val client = OkHttpClient()
+
+    // Update checks hit api.github.com, which can intermittently time out on a
+    // slow connection. Retry a few times with exponential backoff before giving
+    // up so a single transient SocketTimeoutException doesn't surface an error.
+    private suspend fun <T> retry(
+        times: Int = 3,
+        initialDelayMs: Long = 1000L,
+        block: suspend () -> T
+    ): T {
+        var delayMs = initialDelayMs
+        var last: Throwable? = null
+        repeat(times) { attempt ->
+            try {
+                return block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                last = e
+                if (attempt < times - 1) {
+                    delay(delayMs)
+                    delayMs *= 2
+                }
+            }
+        }
+        throw last ?: IllegalStateException("retry failed")
+    }
 
     @Suppress("KotlinConstantConditions")
     suspend fun updateApp(app: App): File? {
@@ -80,9 +108,11 @@ object AppUpdater {
         val url = "https://api.github.com/repos/$user/$repo/releases/latest"
         val request = Request.Builder().url(url).build()
         val res = runCatching {
-            client.newCall(request).await().use {
-                it.body.string().toData<GithubReleaseResponse>()
-            }.getOrThrow()
+            retry {
+                client.newCall(request).await().use {
+                    it.body.string().toData<GithubReleaseResponse>()
+                }.getOrThrow()
+            }
         }.getOrElse {
             throw Exception("Failed to fetch latest release", it)
         }
@@ -105,8 +135,10 @@ object AppUpdater {
         val url =
             "https://api.github.com/repos/$githubRepo/actions/workflows/nightly.yml/runs?per_page=1&conclusion=success"
         val request = Request.Builder().url(url).build()
-        client.newCall(request).await().body.string().toData<GithubRunsResponse>().getOrThrow()
-            .workflowRuns.firstOrNull { it.sha.take(7) != hash }?.id
+        retry {
+            client.newCall(request).await().body.string().toData<GithubRunsResponse>().getOrThrow()
+                .workflowRuns.firstOrNull { it.sha.take(7) != hash }?.id
+        }
     }.getOrElse {
         throw Exception("Failed to fetch workflow ID", it)
     }
