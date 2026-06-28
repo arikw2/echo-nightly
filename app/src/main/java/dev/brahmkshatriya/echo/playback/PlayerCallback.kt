@@ -13,6 +13,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.Rating
 import androidx.media3.common.ThumbRating
+import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaButtonReceiver
 import androidx.media3.session.MediaSession
@@ -469,7 +470,7 @@ class PlayerCallback(
         val expanded = if (single != null && single.mediaId.startsWith("auto/")) {
             runCatching { expandContainerQueue(single, mediaSession) }.getOrNull()
         } else null
-        if (expanded != null) {
+        val result = if (expanded != null) {
             val (items, index) = expanded
             super.onSetMediaItems(
                 mediaSession, controller, items.toMutableList(), index, startPositionMs
@@ -477,6 +478,29 @@ class PlayerCallback(
         } else super.onSetMediaItems(
             mediaSession, controller, mediaItems, startIndex, startPositionMs
         ).await(context)
+        // Android Auto sends prepare()/play() right after setMediaItems, but our
+        // item resolution above is async (it hits the network), so those commands
+        // can land before the items exist and get lost — leaving the player idle
+        // until the user taps play. Drive playback ourselves once the items land.
+        startPlaybackWhenReady(mediaSession.player)
+        result
+    }
+
+    // Ensure the player actually starts after items are set from an external
+    // controller (Android Auto / Assistant). The returned items are applied by
+    // Media3 *after* this callback resolves, so if they aren't on the player yet
+    // we wait for the timeline to update before preparing.
+    private suspend fun startPlaybackWhenReady(player: Player) = player.with {
+        player.playWhenReady = true
+        if (player.mediaItemCount > 0) {
+            if (player.playbackState == Player.STATE_IDLE) player.prepare()
+        } else player.addListener(object : Player.Listener {
+            override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+                if (player.mediaItemCount == 0) return
+                if (player.playbackState == Player.STATE_IDLE) player.prepare()
+                player.removeListener(this)
+            }
+        })
     }
 
     // Expand the tapped track into its container queue. Returns only the FIRST
