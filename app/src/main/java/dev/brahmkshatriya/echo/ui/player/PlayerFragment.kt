@@ -144,35 +144,58 @@ class PlayerFragment : Fragment() {
             updateLyricPreview(viewModel.progress.value.first)
         }
         observe(viewModel.progress) { (curr, _) -> updateLyricPreview(curr) }
+        // Re-evaluate scheduling when playback starts/stops (schedule the precise
+        // next-line switch on play, drop it on pause).
+        observe(viewModel.isPlaying) { updateLyricPreview(viewModel.progress.value.first) }
     }
 
     // Index of the line currently shown on the overlay, to detect when the
     // line changes so we can crossfade to the next one.
     private var currentLyricIndex = -1
 
+    // Pending precise switch to the next line, scheduled at its exact timestamp.
+    private var lyricRunnable: Runnable? = null
+
     private fun updateLyricPreview(pos: Long) {
         val b = binding ?: return
+        val view = b.lyricCurrent
+        lyricRunnable?.let { view.removeCallbacks(it) }
+        lyricRunnable = null
         val lines = lyricLines
         if (lines.isNullOrEmpty()) return
         var idx = lines.indexOfLast { it.startTime <= pos }
         if (idx < 0) idx = 0
-        if (idx == currentLyricIndex) return
-        val animate = currentLyricIndex != -1
-        currentLyricIndex = idx
-        val text = lines[idx].text
-        val view = b.lyricCurrent
-        // Skip the crossfade on the first line, or while the overlay is mid-fade
-        // with the sheet (its alpha is owned by updateCollapsed then).
-        if (!animate || view.alpha < 0.99f) {
-            view.animate().cancel()
-            view.text = text
-            return
+        if (idx != currentLyricIndex) {
+            val animate = currentLyricIndex != -1
+            currentLyricIndex = idx
+            val text = lines[idx].text
+            // Skip the crossfade on the first line, or while the overlay is
+            // mid-fade with the sheet (its alpha is owned by updateCollapsed).
+            if (!animate || view.alpha < 0.99f) {
+                view.animate().cancel()
+                view.text = text
+            } else {
+                view.animate().cancel()
+                view.animate().alpha(0f).setDuration(180L).withEndAction {
+                    view.text = text
+                    view.animate().alpha(1f).setDuration(220L).start()
+                }.start()
+            }
         }
-        view.animate().cancel()
-        view.animate().alpha(0f).setDuration(180L).withEndAction {
-            view.text = text
-            view.animate().alpha(1f).setDuration(220L).start()
-        }.start()
+        // The progress flow only ticks every 500ms, so relying on it alone makes
+        // the line change up to half a second late. Schedule the switch to the
+        // next line at its exact timestamp; the 500ms tick still runs and
+        // re-syncs this (correcting drift/seeks). Only while playing, so a paused
+        // player doesn't advance the line on wall-clock time.
+        if (viewModel.isPlaying.value) {
+            val next = lines.getOrNull(idx + 1) ?: return
+            val delta = next.startTime - pos
+            if (delta in 1..600_000) {
+                val r = Runnable { updateLyricPreview(next.startTime) }
+                lyricRunnable = r
+                view.postDelayed(r, delta)
+            }
+        }
     }
 
     private val collapseHeight by lazy {
