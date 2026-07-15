@@ -310,7 +310,7 @@ class ExtensionLoader(
         fun ExtensionType.priorityKey() = "priority_${this.feature}"
 
         const val LAST_EXTENSION_KEY = "last_extension"
-        private const val SEED_FLAG = "bundled_extensions_seeded_v14"
+        private const val SEED_FLAG = "bundled_extensions_seeded_v15"
     }
 
 }
