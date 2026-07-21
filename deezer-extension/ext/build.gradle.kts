@@ -4,13 +4,14 @@ plugins {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 kotlin {
-    // Match :common / :app (Kotlin bytecode target 21); a 17 target can't
-    // inline common's target-21 bytecode.
+    // Match :common / :app (target 21). A JVM library requires compileJava
+    // and compileKotlin to agree, and Kotlin can't inline common's target-21
+    // bytecode at a lower target.
     jvmToolchain(21)
 }
 
