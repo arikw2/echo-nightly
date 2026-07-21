@@ -15,6 +15,7 @@ import dev.brahmkshatriya.echo.common.clients.LoginClient
 import dev.brahmkshatriya.echo.common.helpers.Injectable
 import dev.brahmkshatriya.echo.common.helpers.WebViewClient
 import dev.brahmkshatriya.echo.common.models.ExtensionType
+import dev.brahmkshatriya.echo.common.models.ImportType
 import dev.brahmkshatriya.echo.common.models.Metadata
 import dev.brahmkshatriya.echo.common.providers.GlobalSettingsProvider
 import dev.brahmkshatriya.echo.common.providers.LyricsExtensionsProvider
@@ -31,6 +32,7 @@ import dev.brahmkshatriya.echo.extensions.ExtensionUtils.getOrThrow
 import dev.brahmkshatriya.echo.extensions.ExtensionUtils.inject
 import dev.brahmkshatriya.echo.extensions.builtin.offline.OfflineExtension
 import dev.brahmkshatriya.echo.extensions.builtin.unified.UnifiedExtension
+import dev.brahmkshatriya.echo.extension.DeezerExtension
 import dev.brahmkshatriya.echo.extensions.db.ExtensionDatabase
 import dev.brahmkshatriya.echo.extensions.db.models.CurrentUser
 import dev.brahmkshatriya.echo.extensions.exceptions.AppException.Companion.toAppException
@@ -78,6 +80,25 @@ class ExtensionLoader(
     val fileIgnoreFlow = MutableSharedFlow<File?>()
     private val repository = CombinedRepository(
         scope, app.context, fileIgnoreFlow, parser,
+        // Deezer compiled in as a built-in (like gladix) so it tracks the app's
+        // common API and stays current — replaces the stale bundled deezer.apk.
+        Metadata(
+            className = "dev.brahmkshatriya.echo.extension.DeezerExtension",
+            path = "",
+            importType = ImportType.BuiltIn,
+            type = ExtensionType.MUSIC,
+            id = "deezer",
+            name = "Deezer",
+            version = "v1.0.0",
+            description = "Deezer Extension for Echo.",
+            author = "Luftnos",
+            authorUrl = null,
+            icon = null,
+            repoUrl = null,
+            updateUrl = null,
+            preservedPackages = emptyList(),
+            isEnabled = true,
+        ) to lazy { DeezerExtension() },
         UnifiedExtension.metadata to unified,
         OfflineExtension.metadata to lazy { OfflineExtension(app.context) },
 //        TestExtension.metadata to lazy { TestExtension() },
@@ -246,6 +267,10 @@ class ExtensionLoader(
         runCatching {
             val dir = File(app.context.filesDir, "extensions").apply { mkdirs() }
             dir.setWritable(true, true)
+            // Deezer is now a compiled-in built-in extension (id "deezer"), so
+            // remove any previously-seeded file-based copy to avoid a duplicate
+            // "deezer" id on upgrade.
+            File(dir, "deezer.apk").delete()
             val assets = app.context.assets
             (assets.list("extensions") ?: emptyArray()).filter { it.endsWith(".apk") }
                 .forEach { name ->
@@ -310,7 +335,7 @@ class ExtensionLoader(
         fun ExtensionType.priorityKey() = "priority_${this.feature}"
 
         const val LAST_EXTENSION_KEY = "last_extension"
-        private const val SEED_FLAG = "bundled_extensions_seeded_v12"
+        private const val SEED_FLAG = "bundled_extensions_seeded_v13"
     }
 
 }
