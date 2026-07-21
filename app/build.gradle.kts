@@ -69,6 +69,7 @@ kotlin {
 
 dependencies {
     implementation(project(":common"))
+    implementation(project(":deezer-extension"))
     implementation(libs.kotlin.reflect)
     implementation(libs.bundles.androidx)
     implementation(libs.material)
