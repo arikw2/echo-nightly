@@ -9,7 +9,9 @@ java {
 }
 
 kotlin {
-    jvmToolchain(17)
+    // Match :common / :app (Kotlin bytecode target 21); a 17 target can't
+    // inline common's target-21 bytecode.
+    jvmToolchain(21)
 }
 
 // Compiled directly into the app as a built-in extension (registered in
