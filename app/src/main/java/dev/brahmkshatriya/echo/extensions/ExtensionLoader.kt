@@ -261,9 +261,9 @@ class ExtensionLoader(
         // the global app settings so the extension can't overwrite it. Done first
         // and independently so an APK-copy failure can't skip it.
         settings.edit(commit = true) { putString("forced_quality_echo_combine", "320kbps") }
-        // Default the now-playing lyrics provider to the bundled LRCLIB extension
+        // Default the now-playing lyrics provider to the bundled LrcLib extension
         // (free synced lyrics). LyricsViewModel reads "last_lyrics_client" to pick.
-        settings.edit(commit = true) { putString("last_lyrics_client", "lrclib") }
+        settings.edit(commit = true) { putString("last_lyrics_client", "lrclib_lyrics") }
         runCatching {
             val dir = File(app.context.filesDir, "extensions").apply { mkdirs() }
             dir.setWritable(true, true)
@@ -271,6 +271,10 @@ class ExtensionLoader(
             // remove any previously-seeded file-based copy to avoid a duplicate
             // "deezer" id on upgrade.
             File(dir, "deezer.apk").delete()
+            // The fork-built LRCLIB (id "lrclib") is replaced by the official
+            // LrcLib extension (id "lrclib_lyrics", auto-updates from its own
+            // repo); remove the old copy so both don't show up.
+            File(dir, "lrclib.apk").delete()
             val assets = app.context.assets
             (assets.list("extensions") ?: emptyArray()).filter { it.endsWith(".apk") }
                 .forEach { name ->
@@ -335,7 +339,7 @@ class ExtensionLoader(
         fun ExtensionType.priorityKey() = "priority_${this.feature}"
 
         const val LAST_EXTENSION_KEY = "last_extension"
-        private const val SEED_FLAG = "bundled_extensions_seeded_v18"
+        private const val SEED_FLAG = "bundled_extensions_seeded_v19"
     }
 
 }

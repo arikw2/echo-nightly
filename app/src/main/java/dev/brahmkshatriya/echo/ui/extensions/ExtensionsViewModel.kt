@@ -210,10 +210,10 @@ class ExtensionsViewModel(
 
     // Bundled extensions built specifically for this fork. Their embedded
     // update_url points at repos that don't carry these builds (Combine's at
-    // the original author's repo, LRCLIB's at this app's repo), so following
-    // it replaces the forked build with a foreign one. They update only via
-    // app releases + the seed-flag bump in ExtensionLoader.
-    private val seededNoAutoUpdate = setOf("echo_combine", "lrclib")
+    // the original author's repo), so following it replaces the forked build
+    // with a foreign one. They update only via app releases + the seed-flag
+    // bump in ExtensionLoader.
+    private val seededNoAutoUpdate = setOf("echo_combine")
 
     private suspend fun getExtensionUpdate(
         extension: Extension<*>,
