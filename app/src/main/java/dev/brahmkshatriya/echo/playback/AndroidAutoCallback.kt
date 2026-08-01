@@ -419,10 +419,8 @@ abstract class AndroidAutoCallback(
             val shelf = listsMap[id]!!
             when (shelf) {
                 is Shelf.Lists.Categories -> shelf.list.map { it.toMediaItem(context, extId) }
-                is Shelf.Lists.Items -> shelf.list.filterNot { it.isPodcast() }
-                    .map { it.toMediaItem(context, extId) }
-                is Shelf.Lists.Tracks -> shelf.list.filterNot { it.isPodcast() }
-                    .map { it.toItem(context, extId) }
+                is Shelf.Lists.Items -> shelf.list.map { it.toMediaItem(context, extId) }
+                is Shelf.Lists.Tracks -> shelf.list.map { it.toItem(context, extId) }
             } + listOfNotNull(
                 shelf.more?.let { more ->
                     val moreId = shelf.id
@@ -455,29 +453,9 @@ abstract class AndroidAutoCallback(
             }
         }
 
-        // Podcasts (Spotify shows/episodes) aren't playable via the Deezer
-        // stream source, so hide them. Their ids are spotify:show:.. / :episode:..
-        private fun EchoMediaItem.isPodcast() =
-            id.contains(":show:") || id.contains(":episode:")
-
-        private fun Track.isPodcast() = id.contains(":episode:")
-
-        // Drop podcast show/episode tiles from a shelf list (single items + the
-        // entries inside Lists rows).
-        private fun List<Shelf>.dropPodcasts() = mapNotNull { shelf ->
-            when (shelf) {
-                is Shelf.Item -> if (shelf.media.isPodcast()) null else shelf
-                is Shelf.Lists.Items ->
-                    shelf.copy(list = shelf.list.filterNot { it.isPodcast() })
-                is Shelf.Lists.Tracks ->
-                    shelf.copy(list = shelf.list.filterNot { it.isPodcast() })
-                else -> shelf
-            }
-        }
-
         // Flatten search/feed shelves into individual media items so results show
         // directly (tracks playable, albums/playlists/artists browsable).
-        private fun List<Shelf>.toMediaItems(context: Context, extId: String) = dropPodcasts().flatMap { shelf ->
+        private fun List<Shelf>.toMediaItems(context: Context, extId: String) = flatMap { shelf ->
             when (shelf) {
                 is Shelf.Item -> listOf(shelf.media.toMediaItem(context, extId))
                 is Shelf.Category -> listOf(shelf.toMediaItem(context, extId))
@@ -498,7 +476,7 @@ abstract class AndroidAutoCallback(
             val (list, next) = shelf.loadPage(continuations[id to page])
             continuations[id to page + 1] = next
             return listOfNotNull(
-                *list.dropPodcasts().map { it.toMediaItem(context, extId) }.toTypedArray()
+                *list.map { it.toMediaItem(context, extId) }.toTypedArray()
             )
         }
 
@@ -517,7 +495,7 @@ abstract class AndroidAutoCallback(
             val data = feedPagedMap.getOrPut(key) { firstPagedData() }
             val (list, next) = data.loadPage(continuations[key to page])
             continuations[key to page + 1] = next
-            return list.dropPodcasts().map { it.toMediaItem(context, extId) }
+            return list.map { it.toMediaItem(context, extId) }
         }
 
         private suspend fun getFeedItems(
@@ -528,7 +506,7 @@ abstract class AndroidAutoCallback(
             val data = feedPagedMap.getOrPut(key) { feed.firstPagedData() }
             val (list, next) = data.loadPage(continuations[key to page])
             continuations[key to page + 1] = next
-            return list.dropPodcasts().map { it.toMediaItem(context, extId) }
+            return list.map { it.toMediaItem(context, extId) }
         }
 
         private suspend inline fun <reified T> Extension<*>.getFeed(
@@ -541,7 +519,7 @@ abstract class AndroidAutoCallback(
             val data = feedPagedMap.getOrPut(parentId) { getFeed().firstPagedData() }
             val (list, next) = data.loadPage(continuations[parentId to pageNumber])
             continuations[parentId to pageNumber + 1] = next
-            list.dropPodcasts().map { it.toMediaItem(context, this@getFeed.id) }
+            list.map { it.toMediaItem(context, this@getFeed.id) }
         }
 
         // Incremental, re-query-stable paging. The extension's PagedData is not
@@ -577,7 +555,7 @@ abstract class AndroidAutoCallback(
             while (!paging.done && paging.loaded.size < need) {
                 val (chunk, next) = paging.data.loadPage(paging.continuation.takeIf { paging.started })
                 paging.started = true
-                paging.loaded.addAll(chunk.filterNot { it.isPodcast() })
+                paging.loaded.addAll(chunk)
                 paging.continuation = next
                 if (next == null) paging.done = true
             }
